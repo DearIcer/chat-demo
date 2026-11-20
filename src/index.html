@@ -4,7 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#ffffff" />
-    <title>API 使用 demo</title>
+    <title>DeepSeek Chat</title>
+    <script>
+      // 官方登录回跳固定落在 /oauth/callback。先把地址还原到根路径，
+      // 让构建产物里的相对资源路径（static/...）在任意子路径下都能解析。
+      if (location.pathname === '/oauth/callback') {
+        history.replaceState(null, '', `/${location.search}${location.hash}`)
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

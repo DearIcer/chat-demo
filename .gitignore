@@ -9,3 +9,9 @@ build/
 .env.*
 !.env.example
 tmp/
+
+# Android 构建产物（源码与构建脚本保留）
+android/assets/
+android/*.apk
+android/*.idsig
+android/*.keystore

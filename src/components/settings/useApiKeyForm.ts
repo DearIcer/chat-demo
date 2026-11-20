@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ApiError, verifyApiKey } from '../../services/api/client.js'
+import { ApiError, verifyCredential } from '../../services/api/client.js'
 import { classifyApiError } from '../../services/api/errors.js'
 import { setApiKey } from '../../services/settings.js'
 import { useTranslate } from '../../i18n/index.js'
@@ -35,7 +35,7 @@ export const useApiKeyForm = (onSaved?: () => void) => {
     setVerifying(true)
     setFailure(null)
     try {
-      await verifyApiKey(apiKey)
+      await verifyCredential({ kind: 'api-key', value: apiKey })
       setApiKey(apiKey)
       setValue('')
       onSaved?.()

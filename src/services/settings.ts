@@ -7,9 +7,11 @@ export type Locale = 'zh-CN' | 'en-US'
 /** 主题偏好；默认跟随系统 */
 export type ThemePreference = 'light' | 'dark' | 'system'
 
-/** 本机设置，存 localStorage：API Key、语言、主题、位置、朗读音色、深度思考与智能搜索开关、侧边栏收起状态 */
+/** 本机设置，存 localStorage：官方账号 token、API Key、语言、主题、位置、朗读音色、深度思考与智能搜索开关、侧边栏收起状态 */
 type Settings = {
   apiKey: string | null
+  /** 官方账号登录得到的授权 token；存在时优先于 API Key */
+  accountToken: string | null
   locale: Locale
   themePreference: ThemePreference
   location: UserLocation | null
@@ -21,6 +23,7 @@ type Settings = {
 
 const KEYS = {
   apiKey: 'chat-demo:api-key',
+  accountToken: 'chat-demo:account-token',
   locale: 'chat-demo:locale',
   location: 'chat-demo:location',
   themePreference: 'chat-demo:theme-preference',
@@ -38,15 +41,17 @@ const read = (key: string) => {
   }
 }
 
-const write = (key: string, value: string | null) => {
+const write = (key: string, value: string | null): boolean => {
   try {
     if (value === null) {
       localStorage.removeItem(key)
     } else {
       localStorage.setItem(key, value)
     }
+    return true
   } catch {
-    // 存储不可用时只在内存中生效
+    // 存储不可用时只在内存中生效；调用方按需检查返回值
+    return false
   }
 }
 
@@ -89,6 +94,7 @@ const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide'
 
 export const useSettings = create<Settings>(() => ({
   apiKey: read(KEYS.apiKey),
+  accountToken: read(KEYS.accountToken),
   locale: initialLocale(),
   location: initialLocation(),
   themePreference: initialThemePreference(),
@@ -122,6 +128,32 @@ export const setTtsVoice = (ttsVoice: TtsVoice) => {
 export const setApiKey = (apiKey: string | null) => {
   write(KEYS.apiKey, apiKey)
   useSettings.setState({ apiKey })
+}
+
+/**
+ * 保存登录得到的账号 token。
+ * 必须真正落盘：写失败时不更新内存状态并返回 false，
+ * 否则回跳页整页跳转后凭证会丢失，用户会以为登录没生效。
+ * @returns 是否已经写入成功
+ */
+export const saveAccountToken = (accountToken: string): boolean => {
+  if (!write(KEYS.accountToken, accountToken)) {
+    return false
+  }
+  useSettings.setState({ accountToken })
+  return true
+}
+
+/**
+ * 清除本地账号 token。
+ * 删除存储失败时仍然清掉内存凭证：以调用方（退出登录 / 凭证失效）的意图为准，
+ * 保证当前会话不再用旧 token 发请求。
+ * @returns 是否真的从存储里删掉了；false 表示重启后可能又从本地读回该凭证
+ */
+export const clearAccountToken = (): boolean => {
+  const removed = write(KEYS.accountToken, null)
+  useSettings.setState({ accountToken: null })
+  return removed
 }
 
 export const setThinking = (thinking: boolean) => {

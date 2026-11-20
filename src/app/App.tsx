@@ -14,7 +14,8 @@ import { closeSearchPanel } from '../components/search/searchPanelState.js'
 import { SessionView } from '../components/session/SessionView.js'
 import { MobileHeader } from '../components/session/MobileHeader.js'
 import { Welcome } from '../components/session/Welcome.js'
-import { ensureApiKey } from '../components/settings/settingsDialogState.js'
+import { ensureCredential } from '../components/settings/settingsDialogState.js'
+import { refreshAccount } from '../services/auth/store.js'
 import { SettingsDialog } from '../components/settings/SettingsDialog.js'
 import { Toast } from '../components/base/Toast.js'
 import { showToast } from '../components/base/toastState.js'
@@ -69,8 +70,10 @@ export const App = () => {
 
   useEffect(() => {
     void initChat()
-    // 首次打开先在设置里输入 API Key
-    ensureApiKey()
+    // 已登录时读取账号资料；被服务端拒绝会自动清掉本地凭证
+    void refreshAccount()
+    // 首次打开先在设置里登录或输入 API Key
+    ensureCredential()
   }, [])
 
   return (

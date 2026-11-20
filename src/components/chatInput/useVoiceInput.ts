@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TranslationMessage } from '../../i18n/index.js'
+import { ApiError } from '../../services/api/client.js'
 import { transcribe } from '../../services/api/speech.js'
+import { currentCredential } from '../../services/auth/credential.js'
 import { startRecording, type Recording } from '../../services/speech/recorder.js'
-import { useSettings } from '../../services/settings.js'
 import { showToast } from '../base/toastState.js'
 
 export type VoiceInputStatus = 'idle' | 'recording' | 'transcribing'
@@ -13,6 +14,7 @@ export type VoiceInputStatus = 'idle' | 'recording' | 'transcribing'
  */
 const AVAILABLE = typeof window === 'undefined' || window.isSecureContext
 
+/** 录音启动失败：按 DOMException 的具体名字给出可区分的原因 */
 const describeRecordingError = (error: unknown): TranslationMessage => {
   if (error instanceof DOMException) {
     if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
@@ -21,9 +23,24 @@ const describeRecordingError = (error: unknown): TranslationMessage => {
     if (error.name === 'NotFoundError') {
       return { key: 'voiceInputNoDevice' }
     }
+    // 麦克风被别的应用占用时 Android 常见
+    if (error.name === 'NotReadableError' || error.name === 'AbortError') {
+      return { key: 'voiceInputBusy' }
+    }
+    if (error.name === 'OverconstrainedError') {
+      return { key: 'voiceInputNoDevice' }
+    }
   }
   return { key: 'voiceInputFailed' }
 }
+
+/**
+ * 转写失败：网络中断单独提示，其余（含服务端拒绝）走通用文案。
+ */
+const describeTranscribeError = (error: unknown): TranslationMessage =>
+  error instanceof ApiError && error.kind === 'network'
+    ? { key: 'commonNetworkErrorToast' }
+    : { key: 'voiceInputFailed' }
 
 /**
  * 语音输入（oneshot）：点击开始录音，再次点击结束并转写，结果交给 onText 填入输入框。
@@ -75,7 +92,12 @@ export const useVoiceInput = (onText: (text: string) => void) => {
       controller = new AbortController()
       controllerRef.current = controller
       setStatus('transcribing')
-      const text = await transcribe(useSettings.getState().apiKey ?? '', audio, controller.signal)
+      const credential = currentCredential()
+      if (!credential) {
+        showToast({ key: 'voiceInputFailed' })
+        return
+      }
+      const text = await transcribe(credential, audio, controller.signal)
       if (controller.signal.aborted || operationRef.current !== operation) {
         return
       }
@@ -84,9 +106,9 @@ export const useVoiceInput = (onText: (text: string) => void) => {
       } else {
         showToast({ key: 'voiceInputEmpty' })
       }
-    } catch {
+    } catch (error) {
       if (operationRef.current === operation && !controller?.signal.aborted) {
-        showToast({ key: 'voiceInputFailed' })
+        showToast(describeTranscribeError(error))
       }
     } finally {
       if (operationRef.current === operation) {

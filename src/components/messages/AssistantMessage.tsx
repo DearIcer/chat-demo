@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { memo } from 'react'
 import { IconRefreshOutline16, IconWarningOutline16 } from '../base/icons.js'
 import { describeReply } from '../../services/chat/describe.js'
+import { PLATFORM_LINKS } from '../../services/auth/platform.js'
 import { canContinueReply } from '../../services/chat/reply.js'
 import { continueReply, regenerateReply } from '../../services/chat/store.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
@@ -24,7 +25,7 @@ import {
 } from './BranchSwitcher.js'
 import styles from './AssistantMessage.module.css'
 
-const TOP_UP_URL = 'https://platform.deepseek.com/top_up'
+const TOP_UP_URL = PLATFORM_LINKS.topUp
 
 export const AssistantMessage = memo(function AssistantMessage({
   sessionId,
@@ -96,7 +97,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           <IconWarningOutline16 />
           <span>
             {notice.text}
-            {notice.action === 'apiKey' ? (
+            {notice.action === 'apiKey' || notice.action === 'signIn' ? (
               <>
                 {' '}
                 <button
@@ -104,7 +105,7 @@ export const AssistantMessage = memo(function AssistantMessage({
                   className={styles.noticeAction}
                   onClick={() => openSettings('data')}
                 >
-                  {t('changeApiKey')}
+                  {t(notice.action === 'signIn' ? 'signInAction' : 'changeApiKey')}
                 </button>
               </>
             ) : null}

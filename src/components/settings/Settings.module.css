@@ -440,3 +440,51 @@
     max-width: 100%;
   }
 }
+
+/* 账号卡片里的余额与入口 */
+.balance {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0 2px;
+}
+
+.balanceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.balanceLabel {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.balanceValue {
+  display: inline-flex;
+  gap: 8px;
+  color: var(--dsw-alias-label-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.balanceMuted {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.balanceLinks {
+  display: inline-flex;
+  gap: 16px;
+}
+
+.balanceLink,
+.balanceHint {
+  color: var(--dsw-alias-brand-text);
+  text-decoration: none;
+}
+
+.balanceLink:hover,
+.balanceHint:hover {
+  text-decoration: underline;
+}

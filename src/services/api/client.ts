@@ -1,4 +1,5 @@
 import { translate, type TranslationMessage } from '../../i18n/index.js'
+import { bearerHeaders, credentialHeaders, type Credential } from '../auth/credential.js'
 import { readMessageEvent } from './parseEvent.js'
 import { readServerSentEvents } from './sse.js'
 import type {
@@ -82,18 +83,21 @@ export const request = async (url: string, init: RequestInit): Promise<Response>
   return response
 }
 
-const anthropicHeaders = (apiKey: string, beta: boolean): Record<string, string> => ({
-  // DeepSeek 兼容接口的鉴权方式，也可使用 Authorization: Bearer。
-  'x-api-key': apiKey,
+/** 鉴权头：API Key 用 x-api-key，官方账号 token 用 x-dsh-auth-token */
+const anthropicHeaders = (credential: Credential, beta: boolean): Record<string, string> => ({
+  ...credentialHeaders(credential),
   // Files API 和通过 file_id 引用图片时必传；纯文本聊天无需携带。
   ...(beta ? { 'anthropic-beta': FILES_BETA } : {}),
 })
 
-/** 用 GET /models 校验 API Key（不产生费用） */
-export const verifyApiKey = async (apiKey: string, signal?: AbortSignal): Promise<void> => {
+/** 用 GET /models 校验凭证（不产生费用）。该接口按官方文档用 Authorization: Bearer 鉴权 */
+export const verifyCredential = async (
+  credential: Credential,
+  signal?: AbortSignal
+): Promise<void> => {
   await request(`${API_ORIGIN}/models`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${apiKey}` },
+    headers: bearerHeaders(credential),
     signal,
   })
 }
@@ -103,7 +107,7 @@ export const verifyApiKey = async (apiKey: string, signal?: AbortSignal): Promis
  * purpose 为 null 时不传该字段（图片）；purpose 必须排在 file 之前。
  */
 export const uploadFile = async (
-  apiKey: string,
+  credential: Credential,
   file: File,
   purpose: FilePurpose | null,
   signal?: AbortSignal
@@ -115,7 +119,7 @@ export const uploadFile = async (
   form.append('file', file)
   const response = await request(`${ANTHROPIC_BASE_URL}/files`, {
     method: 'POST',
-    headers: anthropicHeaders(apiKey, true),
+    headers: anthropicHeaders(credential, true),
     body: form,
     signal,
   })
@@ -123,10 +127,10 @@ export const uploadFile = async (
 }
 
 /** DELETE /anthropic/v1/files/{file_id} */
-export const deleteFile = async (apiKey: string, fileId: string): Promise<void> => {
+export const deleteFile = async (credential: Credential, fileId: string): Promise<void> => {
   await request(`${ANTHROPIC_BASE_URL}/files/${encodeURIComponent(fileId)}`, {
     method: 'DELETE',
-    headers: anthropicHeaders(apiKey, true),
+    headers: anthropicHeaders(credential, true),
   })
 }
 
@@ -142,14 +146,14 @@ const hasFile = (body: CreateMessageRequest) =>
  * ping、保活注释与无法解析的内容不产出；中止请求时抛出 signal 的 AbortError。
  */
 export async function* streamMessage(
-  apiKey: string,
+  credential: Credential,
   body: CreateMessageRequest,
   signal: AbortSignal
 ): AsyncGenerator<MessageStreamEvent> {
   const response = await request(`${ANTHROPIC_BASE_URL}/messages`, {
     method: 'POST',
     headers: {
-      ...anthropicHeaders(apiKey, hasFile(body)),
+      ...anthropicHeaders(credential, hasFile(body)),
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
     },
